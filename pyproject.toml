@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "linkedin-scraper"
+version = "0.1.0"
+description = ""
+authors = ["Ritesh Ahlawat <rahlawat@thia.tech>"]
+readme = "README.md"
+packages = [{include = "linkedin_scraper"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
