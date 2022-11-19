@@ -26,15 +26,15 @@ def main() -> None:
         keyword = keyword + str(key1).capitalize() + "%20"
     keyword = keyword.rstrip("%20")
     for page_no in range(1, 2):
-        start = f"&page={page_no}"
-        search_url = f"https://www.linkedin.com/search/results/people/?keywords={keyword}&origin=SUGGESTION{start}&spellCorrectionEnabled=false"
-        driver.get(search_url)
-        search = BeautifulSoup(driver.page_source, 'lxml')
-        potential_people = search.find_all('a', attrs={'data-test-app-aware-link': ''})
-        people = list(filter(lambda potential_person: potential_person.attrs['href'].startswith('https://www.linkedin.com/in/'), potential_people))
-        hrefs = [person.attrs['href'] for person in people]
-        hrefs = list(set(hrefs))
-        p = Person(hrefs[0], driver=driver)
+        # start = f"&page={page_no}"
+        # search_url = f"https://www.linkedin.com/search/results/people/?keywords={keyword}&origin=SUGGESTION{start}&spellCorrectionEnabled=false"
+        # driver.get(search_url)
+        # search = BeautifulSoup(driver.page_source, 'lxml')
+        # potential_people = search.find_all('a', attrs={'data-test-app-aware-link': ''})
+        # people = list(filter(lambda potential_person: potential_person.attrs['href'].startswith('https://www.linkedin.com/in/'), potential_people))
+        # hrefs = [person.attrs['href'] for person in people]
+        # hrefs = list(set(hrefs))
+        p = Person('https://www.linkedin.com/in/aditya-hicounselor/', driver=driver)
         print('````````````````````````````````')
         print('Name:')
         print(p.name)
