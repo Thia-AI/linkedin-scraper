@@ -34,6 +34,7 @@ def main() -> None:
         # people = list(filter(lambda potential_person: potential_person.attrs['href'].startswith('https://www.linkedin.com/in/'), potential_people))
         # hrefs = [person.attrs['href'] for person in people]
         # hrefs = list(set(hrefs))
+        # https://www.linkedin.com/in/shaghayegh-ds/details/interests/
         p = Person('https://www.linkedin.com/in/aditya-hicounselor/', driver=driver)
         print('````````````````````````````````')
         print('Name:')

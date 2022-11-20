@@ -1,10 +1,10 @@
 import os
 
 from selenium import webdriver
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.common.action_chains import ActionChains
 
 from linkedin_scraper import selectors
 from linkedin_scraper.objects import Experience, Education, Scraper, Interest, Accomplishment, Contact
@@ -93,6 +93,9 @@ class Person(Scraper):
             x = input("please verify the capcha then press any key to continue...")
             self.scrape_not_logged_in(close_on_complete=close_on_complete)
 
+    def filter_hidden_span_tag(self, span: str):
+        return span.split('\n')[0]
+
     def _click_see_more_by_section(self, section_name):
         section_class_name = 'pvs-list__footer-wrapper'
         try:
@@ -150,44 +153,35 @@ class Person(Scraper):
         if about:
             self.add_about(about.text.strip())
 
-        ## Click SEE MORE
-        self._click_see_more_by_section("experience")
+        # Go to experience details
+        self.driver.get(self.linkedin_url + 'details/experience')
 
         try:
             _ = WebDriverWait(driver, self.__WAIT_FOR_ELEMENT_TIMEOUT).until(
                 EC.presence_of_element_located((By.CLASS_NAME, "pvs-list"))
             )
             exp = driver.find_element(By.CLASS_NAME, "pvs-list")
+
         except:
             exp = None
 
-        if exp is not None:
-            for position in exp.find_elements(By.TAG_NAME, "li"):
+        if exp:
+            child_exp = exp.find_elements(By.XPATH, "./*")
+            for position in child_exp:
                 position = position.find_element(By.CLASS_NAME, 'pvs-entity')
                 experience_div = position.find_element(By.XPATH, ".//div[2]/div/div[1]")
                 position_title = experience_div.find_element(By.XPATH, './/div[1]/span/span').text
-                company = experience_div.find_elements(By.CLASS_NAME, 't-normal')[0]
-                company.screenshot('yes.jpg')
 
                 try:
-                    company = position.find_elements(By.TAG_NAME, "p")[1].text.strip()
-                    times = str(
-                        position.find_elements(By.TAG_NAME, "h4")[0]
-                        .find_elements(By.TAG_NAME, "span")[1]
-                        .text.strip()
-                    )
-                    from_date = " ".join(times.split(" ")[:2])
-                    to_date = " ".join(times.split(" ")[3:])
-                    duration = (
-                        position.find_elements(By.TAG_NAME, "h4")[1]
-                        .find_elements(By.TAG_NAME, "span")[1]
-                        .text.strip()
-                    )
-                    location = (
-                        position.find_elements(By.TAG_NAME, "h4")[2]
-                        .find_elements(By.TAG_NAME, "span")[1]
-                        .text.strip()
-                    )
+                    company = self.filter_hidden_span_tag(
+                        experience_div.find_elements(By.CLASS_NAME, 't-normal')[0].text)
+                    times = self.filter_hidden_span_tag(experience_div.find_elements(By.CLASS_NAME, 't-normal')[1].text)
+                    location = self.filter_hidden_span_tag(
+                        experience_div.find_elements(By.CLASS_NAME, 't-normal')[2].text)
+                    from_to = times.split('·')[0].strip()
+                    duration = times.split('·')[1].strip()
+                    from_date = from_to.split('-')[0].strip()
+                    to_date = from_to.split('-')[1].strip()
                 except:
                     company = None
                     from_date, to_date, duration, location = (None, None, None, None)
@@ -202,45 +196,31 @@ class Person(Scraper):
                 experience.institution_name = company
                 self.add_experience(experience)
 
-        # get location
-        location = driver.find_element(By.CLASS_NAME, f"{self.__TOP_CARD}--list-bullet")
-        location = location.find_element(By.TAG_NAME, "li").text
-        self.add_location(location)
+        # Get education
+        self.driver.get(self.linkedin_url + 'details/education')
 
-        driver.execute_script(
-            "window.scrollTo(0, Math.ceil(document.body.scrollHeight/1.5));"
-        )
-
-        # get education
-        ## Click SEE MORE
-        self._click_see_more_by_section("education")
         try:
             _ = WebDriverWait(driver, self.__WAIT_FOR_ELEMENT_TIMEOUT).until(
-                EC.presence_of_element_located((By.ID, "education-section"))
+                EC.presence_of_element_located((By.CLASS_NAME, "pvs-list"))
             )
-            edu = driver.find_element(By.ID, "education-section")
+            edu = driver.find_element(By.CLASS_NAME, "pvs-list")
+
         except:
             edu = None
+
         if edu:
-            for school in edu.find_elements(By.CLASS_NAME,
-                                            "pv-profile-section__list-item"
-                                            ):
-                university = school.find_element(By.CLASS_NAME,
-                                                 "pv-entity__school-name"
-                                                 ).text.strip()
+            child_edu = edu.find_elements(By.XPATH, './*')
+            for school in child_edu:
+                school = school.find_element(By.CLASS_NAME, 'pvs-entity')
+                school_div = school.find_element(By.XPATH, './div[2]/div/a')
+                university = school_div.find_element(By.XPATH, './div[1]/span/span').text
 
                 try:
-                    degree = (
-                        school.find_element(By.CLASS_NAME, "pv-entity__degree-name")
-                        .find_elements(By.TAG_NAME, "span")[1]
-                        .text.strip()
-                    )
-                    times = (
-                        school.find_element(By.CLASS_NAME, "pv-entity__dates")
-                        .find_elements(By.TAG_NAME, "span")[1]
-                        .text.strip()
-                    )
-                    from_date, to_date = (times.split(" ")[0], times.split(" ")[2])
+                    degree = school_div.find_element(By.XPATH, './span[1]/span[1]').text
+                    times = school_div.find_element(By.XPATH, './span[2]/span[1]').text
+                    from_date = times.split('-')[0].strip()
+                    to_date = times.split('-')[1].strip()
+
                 except:
                     degree = None
                     from_date, to_date = (None, None)
@@ -250,7 +230,8 @@ class Person(Scraper):
                 education.institution_name = university
                 self.add_education(education)
 
-        # get interest
+        # Get interests
+        self.driver.get(self.linkedin_url)
         try:
 
             _ = WebDriverWait(driver, self.__WAIT_FOR_ELEMENT_TIMEOUT).until(
@@ -288,12 +269,12 @@ class Person(Scraper):
                                       "//*[@class='pv-profile-section pv-accomplishments-section artdeco-container-card artdeco-card ember-view']"
                                       )
             for block in acc.find_elements(By.XPATH,
-                    "//div[@class='pv-accomplishments-block__content break-words']"
-            ):
+                                           "//div[@class='pv-accomplishments-block__content break-words']"
+                                           ):
                 category = block.find_element(By.TAG_NAME, "h3")
                 for title in block.find_element(By.TAG_NAME,
-                        "ul"
-                ).find_elements(By.TAG_NAME, "li"):
+                                                "ul"
+                                                ).find_elements(By.TAG_NAME, "li"):
                     accomplishment = Accomplishment(category.text, title.text)
                     self.add_accomplishment(accomplishment)
         except:
@@ -311,10 +292,10 @@ class Person(Scraper):
                     anchor = conn.find_element(By.CLASS_NAME, "mn-connection-card__link")
                     url = anchor.get_attribute("href")
                     name = conn.find_element(By.CLASS_NAME, "mn-connection-card__details").find_element(By.CLASS_NAME,
-                        "mn-connection-card__name").text.strip()
+                                                                                                        "mn-connection-card__name").text.strip()
                     occupation = conn.find_element(By.CLASS_NAME,
-                        "mn-connection-card__details").find_element(By.CLASS_NAME,
-                        "mn-connection-card__occupation").text.strip()
+                                                   "mn-connection-card__details").find_element(By.CLASS_NAME,
+                                                                                               "mn-connection-card__occupation").text.strip()
 
                     contact = Contact(name=name, occupation=occupation, url=url)
                     self.add_contact(contact)
@@ -333,8 +314,8 @@ class Person(Scraper):
 
         # get name
         self.name = driver.find_element(By.CLASS_NAME,
-            "top-card-layout__title"
-        ).text.strip()
+                                        "top-card-layout__title"
+                                        ).text.strip()
 
         # get experience
         try:
@@ -347,34 +328,34 @@ class Person(Scraper):
 
         if exp is not None:
             for position in exp.find_elements(By.CLASS_NAME,
-                    "experience-item__contents"
-            ):
+                                              "experience-item__contents"
+                                              ):
                 position_title = position.find_element(By.CLASS_NAME,
-                    "experience-item__title"
-                ).text.strip()
+                                                       "experience-item__title"
+                                                       ).text.strip()
                 company = position.find_element(By.CLASS_NAME,
-                    "experience-item__subtitle"
-                ).text.strip()
+                                                "experience-item__subtitle"
+                                                ).text.strip()
 
                 try:
                     times = position.find_element(By.CLASS_NAME,
-                        "experience-item__duration"
-                    )
+                                                  "experience-item__duration"
+                                                  )
                     from_date = times.find_element(By.CLASS_NAME,
-                        "date-range__start-date"
-                    ).text.strip()
+                                                   "date-range__start-date"
+                                                   ).text.strip()
                     try:
                         to_date = times.find_element(By.CLASS_NAME,
-                            "date-range__end-date"
-                        ).text.strip()
+                                                     "date-range__end-date"
+                                                     ).text.strip()
                     except:
                         to_date = "Present"
                     duration = position.find_element(By.CLASS_NAME,
-                        "date-range__duration"
-                    ).text.strip()
+                                                     "date-range__duration"
+                                                     ).text.strip()
                     location = position.find_element(By.CLASS_NAME,
-                        "experience-item__location"
-                    ).text.strip()
+                                                     "experience-item__location"
+                                                     ).text.strip()
                 except:
                     from_date, to_date, duration, location = (None, None, None, None)
 
@@ -393,21 +374,21 @@ class Person(Scraper):
 
         # get education
         edu = driver.find_element(By.CLASS_NAME, "education__list")
-        for school in edu.find_elements(By.CLASS_NAME,"result-card"):
+        for school in edu.find_elements(By.CLASS_NAME, "result-card"):
             university = school.find_element(By.CLASS_NAME,
-                "result-card__title"
-            ).text.strip()
+                                             "result-card__title"
+                                             ).text.strip()
             degree = school.find_element(By.CLASS_NAME,
-                "education__item--degree-info"
-            ).text.strip()
+                                         "education__item--degree-info"
+                                         ).text.strip()
             try:
-                times = school.find_element(By.CLASS_NAME,"date-range")
+                times = school.find_element(By.CLASS_NAME, "date-range")
                 from_date = times.find_element(By.CLASS_NAME,
-                    "date-range__start-date"
-                ).text.strip()
+                                               "date-range__start-date"
+                                               ).text.strip()
                 to_date = times.find_element(By.CLASS_NAME,
-                    "date-range__end-date"
-                ).text.strip()
+                                             "date-range__end-date"
+                                             ).text.strip()
             except:
                 from_date, to_date = (None, None)
             education = Education(from_date=from_date, to_date=to_date, degree=degree)
