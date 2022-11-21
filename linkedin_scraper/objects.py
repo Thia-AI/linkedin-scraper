@@ -1,32 +1,13 @@
 from dataclasses import dataclass
 
 from selenium.webdriver import Chrome
+from selenium.webdriver.common.by import By
 
 import constants as c
 
-from selenium.webdriver.common.by import By
-
 
 @dataclass
-class Contact:
-    name: str = None
-    occupation: str = None
-    url: str = None
-
-
-@dataclass
-class Institution:
-    institution_name: str = None
-    website: str = None
-    industry: str = None
-    type: str = None
-    headquarters: str = None
-    company_size: int = None
-    founded: int = None
-
-
-@dataclass
-class Experience(Institution):
+class Experience:
     from_date: str = None
     to_date: str = None
     description: str = None
@@ -36,7 +17,7 @@ class Experience(Institution):
 
 
 @dataclass
-class Education(Institution):
+class Education:
     from_date: str = None
     to_date: str = None
     description: str = None
@@ -44,14 +25,14 @@ class Education(Institution):
 
 
 @dataclass
-class Interest(Institution):
-    title = None
+class Skill:
+    name: str = None
 
 
 @dataclass
-class Accomplishment(Institution):
-    category = None
-    title = None
+class Project:
+    title: str = None
+    description: str = None
 
 
 @dataclass
@@ -60,38 +41,10 @@ class Scraper:
 
     def is_signed_in(self):
         try:
-            self.driver.find_element(By.ID,c.VERIFY_LOGIN_ID)
+            self.driver.find_element(By.ID, c.VERIFY_LOGIN_ID)
             return True
         except:
             pass
         return False
 
-    def __find_element_by_class_name__(self, class_name):
-        try:
-            self.driver.find_element_by_class_name(class_name)
-            return True
-        except:
-            pass
-        return False
 
-    def __find_element_by_xpath__(self, tag_name):
-        try:
-            self.driver.find_element(By.XPATH,tag_name)
-            return True
-        except:
-            pass
-        return False
-
-    def __find_enabled_element_by_xpath__(self, tag_name):
-        try:
-            elem = self.driver.find_element(By.XPATH,tag_name)
-            return elem.is_enabled()
-        except:
-            pass
-        return False
-
-    @classmethod
-    def __find_first_available_element__(cls, *args):
-        for elem in args:
-            if elem:
-                return elem[0]
