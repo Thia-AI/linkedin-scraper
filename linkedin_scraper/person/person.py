@@ -7,7 +7,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from linkedin_scraper import selectors
+from linkedin_scraper import linkedin_selectors
 from linkedin_scraper.objects import Experience, Education, Scraper, Skill, Project
 
 
@@ -109,7 +109,7 @@ class Person(Scraper):
             )
         )
 
-        self.name = self.driver.find_element(By.CLASS_NAME, selectors.NAME).text.strip()
+        self.name = self.driver.find_element(By.CLASS_NAME, linkedin_selectors.NAME).text.strip()
 
         # get about
         try:
@@ -146,9 +146,9 @@ class Person(Scraper):
             for position in exp_children:
                 position = position.find_element(By.CLASS_NAME, 'pvs-entity')
                 experience_div = position.find_element(By.XPATH, "./div[2]/div/div[1]")
-                position_title = experience_div.find_element(By.XPATH, './div[1]/span/span').text
 
                 try:
+                    position_title = experience_div.find_element(By.XPATH, './div[1]/span/span').text
                     company = filter_hidden_span_tag(
                         experience_div.find_elements(By.CLASS_NAME, 't-normal')[0].text)
                     times = filter_hidden_span_tag(experience_div.find_elements(By.CLASS_NAME, 't-normal')[1].text)
@@ -163,22 +163,75 @@ class Person(Scraper):
                     try:
                         description_div = position.find_element(By.XPATH, './div[2]/div[2]')
                         description = description_div.find_element(By.XPATH, './/*/span').text
-                    except:
+                    except Exception as e:
                         pass
+                    experience = Experience(
+                        position_title=position_title,
+                        from_date=from_date,
+                        to_date=to_date,
+                        duration=duration,
+                        location=location,
+                        description=description
+                    )
+                    experience.institution_name = company
+                    self.add_experience(experience)
                 except:
-                    company = None
-                    from_date, to_date, duration, location = (None, None, None, None)
+                    # Experience may have multiple roles at the same company
+                    try:
+                        experience_div = position.find_element(By.XPATH, './div[2]')
+                        company_div = experience_div.find_element(By.XPATH, './div[1]//a')
+                        company = filter_hidden_span_tag(company_div.find_element(By.XPATH, './div').text)
+                        stay_at_company_details = company_div.find_element(By.XPATH, './span[1]').text
+                        duration = filter_hidden_span_tag(stay_at_company_details.split('·')[-1].strip())
+                        location = filter_hidden_span_tag(company_div.find_element(By.XPATH, './span[2]').text)
 
-                experience = Experience(
-                    position_title=position_title,
-                    from_date=from_date,
-                    to_date=to_date,
-                    duration=duration,
-                    location=location,
-                    description=description
-                )
-                experience.institution_name = company
-                self.add_experience(experience)
+                        positions_list = experience_div.find_elements(By.XPATH,
+                                                                      "./div[2]//li[contains(@class, 'pvs-list__paged-list-item')]")
+                        latest_pos_div = positions_list[0].find_element(By.XPATH, './/a')
+                        oldest_pos_div = positions_list[-1].find_element(By.XPATH, './/a')
+
+                        position_title = filter_hidden_span_tag(latest_pos_div.find_element(By.XPATH, './div').text)
+
+                        latest_pos_times = filter_hidden_span_tag(latest_pos_div.find_element(By.XPATH, "./span[contains(@class, 't-black--light')]").text)
+                        latest_pos_from_to = latest_pos_times.split('·')[0].strip()
+                        to_date = latest_pos_from_to.split('-')[-1].strip()
+
+                        oldest_pos_times = filter_hidden_span_tag(oldest_pos_div.find_element(By.XPATH, "./span[contains(@class, 't-black--light')]").text)
+                        oldest_pos_from_to = oldest_pos_times.split('·')[0].strip()
+                        from_date = oldest_pos_from_to.split('-')[0].strip()
+
+                        # Description is potentially missing
+                        description = None
+                        try:
+                            description = positions_list[0].find_element(By.XPATH, './div/div/div[2]/div[2]//span').text
+                        except:
+                            pass
+                        experience = Experience(
+                            position_title=position_title,
+                            from_date=from_date,
+                            to_date=to_date,
+                            duration=duration,
+                            location=location,
+                            description=description
+                        )
+                        experience.institution_name = company
+                        self.add_experience(experience)
+                    except:
+                        company = None
+                        position_title = None
+                        description = None
+                        from_date, to_date, duration, location = (None, None, None, None)
+                        experience = Experience(
+                            position_title=position_title,
+                            from_date=from_date,
+                            to_date=to_date,
+                            duration=duration,
+                            location=location,
+                            description=description
+                        )
+                        experience.institution_name = company
+                        self.add_experience(experience)
+
 
         # Get education
         self.driver.get(self.linkedin_url + '/details/education/')
@@ -235,13 +288,13 @@ class Person(Scraper):
                 project = project.find_element(By.CLASS_NAME, 'pvs-entity')
                 project_div = project.find_element(By.XPATH, './div[2]')
                 try:
-                    project_title = filter_hidden_span_tag(project_div.find_element(By.XPATH, './div[1]/div[1]/div[1]').text)
+                    project_title = filter_hidden_span_tag(
+                        project_div.find_element(By.XPATH, './div[1]/div[1]/div[1]').text)
                     project_description = project_div.find_element(By.XPATH, './div[2]//*/span').text
                     project_obj = Project(project_title, project_description)
                     self.add_project(project_obj)
                 except Exception as e:
                     pass
-
 
     @property
     def company(self):

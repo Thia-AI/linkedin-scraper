@@ -1,5 +1,6 @@
 import getpass
 
+from selenium.common import TimeoutException
 from selenium.webdriver import Chrome
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
@@ -27,8 +28,13 @@ def login(driver: Chrome, email=None, password=None, cookie=None, timeout=10):
         email, password = __prompt_email_password()
 
     driver.get("https://www.linkedin.com/login")
-    element = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "username")))
-
+    try:
+        element = WebDriverWait(driver, timeout).until(EC.presence_of_element_located((By.ID, "username")))
+    except TimeoutException as e:
+        # Element not found - already logged in
+        return
+    except Exception as e:
+        raise e
     email_elem = driver.find_element(By.ID, "username")
     email_elem.send_keys(email)
 

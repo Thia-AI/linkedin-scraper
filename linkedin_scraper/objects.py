@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-
+from typing import Optional
 from selenium.webdriver import Chrome
 from selenium.webdriver.common.by import By
 
@@ -8,12 +8,12 @@ import constants as c
 
 @dataclass
 class Experience:
-    from_date: str = None
-    to_date: str = None
-    description: str = None
-    position_title: str = None
-    duration: str = None
-    location: str = None
+    from_date: Optional[str] = None
+    to_date: Optional[str] = None
+    description: Optional[str] = None
+    position_title: Optional[str] = None
+    duration: Optional[str] = None
+    location: Optional[str] = None
 
 
 @dataclass
@@ -46,5 +46,3 @@ class Scraper:
         except:
             pass
         return False
-
-

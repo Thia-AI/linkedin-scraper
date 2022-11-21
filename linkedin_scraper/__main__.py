@@ -1,8 +1,12 @@
 import json
 
 from bs4 import BeautifulSoup
-from selenium import webdriver
+from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.webdriver import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
 
 from actions import login
 from config import LINKEDIN_EMAIL, LINKEDIN_PASS
@@ -13,11 +17,17 @@ def main() -> None:
     print('Using email:', LINKEDIN_EMAIL)
     print('Using password:', LINKEDIN_PASS)
     chrome_options = Options()
+    chrome_options.add_argument("user-data-dir='/Users/rahlawat/Library/Application Support/Google/Chrome/Default'")
     # chrome_options.add_experimental_option('detach', True)
+    driver = Chrome(options=chrome_options)
 
-    driver = webdriver.Chrome(options=chrome_options)
-    login(driver, LINKEDIN_EMAIL, LINKEDIN_PASS)
-
+    login(driver, LINKEDIN_EMAIL, LINKEDIN_PASS, timeout=3)
+    # Hide chat
+    WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.XPATH, "//button[contains(@class, 'msg-overlay-bubble-header__control')]")))
+    hide_chat_button = driver.find_elements(By.XPATH,
+                                            "//button[contains(@class, 'msg-overlay-bubble-header__control')]")
+    hide_chat_button[-1].click()
     # Search
     # &spellCorrectionEnabled=false
     search_key = "AutoML"
