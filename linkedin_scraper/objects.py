@@ -14,6 +14,7 @@ class Experience:
     position_title: Optional[str] = None
     duration: Optional[str] = None
     location: Optional[str] = None
+    company: Optional[str] = None
 
 
 @dataclass

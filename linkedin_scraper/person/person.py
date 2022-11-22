@@ -9,7 +9,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 from linkedin_scraper import linkedin_selectors
 from linkedin_scraper.objects import Experience, Education, Scraper, Skill, Project
-
+from linkedin_scraper.helper import sleep_for_a_random_time
 
 def filter_hidden_span_tag(span: str):
     return span.split('\n')[0]
@@ -17,7 +17,7 @@ def filter_hidden_span_tag(span: str):
 
 class Person(Scraper):
     __TOP_CARD = "pv-top-card"
-    __WAIT_FOR_ELEMENT_TIMEOUT = 10
+    __WAIT_FOR_ELEMENT_TIMEOUT = 5
 
     def __init__(
             self,
@@ -29,7 +29,7 @@ class Person(Scraper):
     ):
         self.linkedin_url = linkedin_url
         self.name = ''
-        self.about = []
+        self.about = ''
         self.experiences = []
         self.educations = []
         self.also_viewed_urls = []
@@ -59,8 +59,8 @@ class Person(Scraper):
         if scrape:
             self.scrape(close_on_complete)
 
-    def add_about(self, about):
-        self.about.append(about)
+    def add_about(self, about: str):
+        self.about = about
 
     def add_experience(self, experience):
         self.experiences.append(experience)
@@ -90,11 +90,9 @@ class Person(Scraper):
         if self.is_signed_in():
             self.scrape_logged_in()
         else:
-            print("you are not logged in!")
-            x = input("please verify the capcha then press any key to continue...")
             self.scrape_logged_in()
         if close_on_complete:
-            driver.quit()
+            self.driver.quit()
 
     def scrape_logged_in(self):
         driver = self.driver
@@ -113,32 +111,25 @@ class Person(Scraper):
 
         # get about
         try:
-            see_more = WebDriverWait(driver, self.__WAIT_FOR_ELEMENT_TIMEOUT).until(
+            WebDriverWait(driver, self.__WAIT_FOR_ELEMENT_TIMEOUT).until(
                 EC.presence_of_element_located(
                     (
-                        By.XPATH,
-                        "//*[@class='lt-line-clamp__more']",
+                        By.ID,
+                        "about",
                     )
                 )
             )
-            driver.execute_script("arguments[0].click();", see_more)
-
-            about = WebDriverWait(driver, self.__WAIT_FOR_ELEMENT_TIMEOUT).until(
-                EC.presence_of_element_located(
-                    (
-                        By.XPATH,
-                        "//*[@class='lt-line-clamp__raw-line']",
-                    )
-                )
-            )
+            about_div = driver.find_element(By.ID, 'about')
+            about_parent = about_div.find_element(By.XPATH, './..')
+            about = about_parent.find_element(By.XPATH, './div[3]//span').text
         except:
             about = None
         if about:
-            self.add_about(about.text.strip())
+            self.add_about(about)
 
         # Go to experience details
         self.driver.get(self.linkedin_url + '/details/experience')
-
+        sleep_for_a_random_time()
         exp = self.get_details_list()
 
         if exp:
@@ -152,8 +143,6 @@ class Person(Scraper):
                     company = filter_hidden_span_tag(
                         experience_div.find_elements(By.CLASS_NAME, 't-normal')[0].text)
                     times = filter_hidden_span_tag(experience_div.find_elements(By.CLASS_NAME, 't-normal')[1].text)
-                    location = filter_hidden_span_tag(
-                        experience_div.find_elements(By.CLASS_NAME, 't-normal')[2].text)
                     from_to = times.split('·')[0].strip()
                     duration = times.split('·')[1].strip()
                     from_date = from_to.split('-')[0].strip()
@@ -165,13 +154,21 @@ class Person(Scraper):
                         description = description_div.find_element(By.XPATH, './/*/span').text
                     except Exception as e:
                         pass
+                    # location is potentially missing
+                    location = None
+                    try:
+                        location = filter_hidden_span_tag(
+                            experience_div.find_elements(By.CLASS_NAME, 't-normal')[2].text)
+                    except:
+                        pass
                     experience = Experience(
                         position_title=position_title,
                         from_date=from_date,
                         to_date=to_date,
                         duration=duration,
                         location=location,
-                        description=description
+                        description=description,
+                        company=company
                     )
                     experience.institution_name = company
                     self.add_experience(experience)
@@ -183,7 +180,6 @@ class Person(Scraper):
                         company = filter_hidden_span_tag(company_div.find_element(By.XPATH, './div').text)
                         stay_at_company_details = company_div.find_element(By.XPATH, './span[1]').text
                         duration = filter_hidden_span_tag(stay_at_company_details.split('·')[-1].strip())
-                        location = filter_hidden_span_tag(company_div.find_element(By.XPATH, './span[2]').text)
 
                         positions_list = experience_div.find_elements(By.XPATH,
                                                                       "./div[2]//li[contains(@class, 'pvs-list__paged-list-item')]")
@@ -206,13 +202,20 @@ class Person(Scraper):
                             description = positions_list[0].find_element(By.XPATH, './div/div/div[2]/div[2]//span').text
                         except:
                             pass
+                        # Location is potentially missing
+                        location = None
+                        try:
+                            location = filter_hidden_span_tag(company_div.find_element(By.XPATH, './span[2]').text)
+                        except:
+                            pass
                         experience = Experience(
                             position_title=position_title,
                             from_date=from_date,
                             to_date=to_date,
                             duration=duration,
                             location=location,
-                            description=description
+                            description=description,
+                            company=company
                         )
                         experience.institution_name = company
                         self.add_experience(experience)
@@ -227,7 +230,8 @@ class Person(Scraper):
                             to_date=to_date,
                             duration=duration,
                             location=location,
-                            description=description
+                            description=description,
+                            company=company
                         )
                         experience.institution_name = company
                         self.add_experience(experience)
@@ -235,6 +239,7 @@ class Person(Scraper):
 
         # Get education
         self.driver.get(self.linkedin_url + '/details/education/')
+        sleep_for_a_random_time()
 
         edu = self.get_details_list()
 
@@ -262,6 +267,7 @@ class Person(Scraper):
 
         # Get Skills
         self.driver.get(self.linkedin_url + '/details/skills/')
+        sleep_for_a_random_time()
 
         ski = self.get_details_list()
 
@@ -269,9 +275,8 @@ class Person(Scraper):
             skill_children = ski.find_elements(By.XPATH, './*')
             for skill in skill_children:
                 skill = skill.find_element(By.CLASS_NAME, 'pvs-entity')
-                skill_div = skill.find_element(By.XPATH, './div[2]')
                 try:
-                    skill_title = filter_hidden_span_tag(skill_div.find_element(By.XPATH, './div[1]').text)
+                    skill_title = filter_hidden_span_tag(skill.find_element(By.XPATH, './/span').text)
                     skill = Skill(skill_title)
                     self.add_skill(skill)
                 except Exception as e:
@@ -279,6 +284,7 @@ class Person(Scraper):
 
         # Get projects
         self.driver.get(self.linkedin_url + '/details/projects')
+        sleep_for_a_random_time()
 
         proj = self.get_details_list()
 
