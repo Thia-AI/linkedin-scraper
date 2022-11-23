@@ -6,8 +6,8 @@ from selenium.webdriver.chrome.webdriver import Options
 
 from actions import login
 from config import LINKEDIN_EMAIL, LINKEDIN_PASS
-from person import Person
 from helper import sleep_for_a_random_time
+from person import Person
 
 
 def main() -> None:
