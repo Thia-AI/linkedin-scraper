@@ -1,5 +1,6 @@
 import os
 from dataclasses import asdict
+import random
 
 from selenium import webdriver
 from selenium.webdriver.common.action_chains import ActionChains
@@ -8,8 +9,9 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from linkedin_scraper import linkedin_selectors
-from linkedin_scraper.objects import Experience, Education, Scraper, Skill, Project
 from linkedin_scraper.helper import sleep_for_a_random_time
+from linkedin_scraper.objects import Experience, Education, Scraper, Skill, Project
+
 
 def filter_hidden_span_tag(span: str):
     return span.split('\n')[0]
@@ -94,11 +96,9 @@ class Person(Scraper):
         if close_on_complete:
             self.driver.quit()
 
-    def scrape_logged_in(self):
-        driver = self.driver
-        duration = None
+    def scrape_name_and_about(self):
 
-        root = WebDriverWait(driver, self.__WAIT_FOR_ELEMENT_TIMEOUT).until(
+        root = WebDriverWait(self.driver, self.__WAIT_FOR_ELEMENT_TIMEOUT).until(
             EC.presence_of_element_located(
                 (
                     By.CLASS_NAME,
@@ -111,7 +111,7 @@ class Person(Scraper):
 
         # get about
         try:
-            WebDriverWait(driver, self.__WAIT_FOR_ELEMENT_TIMEOUT).until(
+            WebDriverWait(self.driver, self.__WAIT_FOR_ELEMENT_TIMEOUT).until(
                 EC.presence_of_element_located(
                     (
                         By.ID,
@@ -119,7 +119,7 @@ class Person(Scraper):
                     )
                 )
             )
-            about_div = driver.find_element(By.ID, 'about')
+            about_div = self.driver.find_element(By.ID, 'about')
             about_parent = about_div.find_element(By.XPATH, './..')
             about = about_parent.find_element(By.XPATH, './div[3]//span').text
         except:
@@ -127,6 +127,7 @@ class Person(Scraper):
         if about:
             self.add_about(about)
 
+    def scrape_experience(self):
         # Go to experience details
         self.driver.get(self.linkedin_url + '/details/experience')
         sleep_for_a_random_time()
@@ -188,11 +189,13 @@ class Person(Scraper):
 
                         position_title = filter_hidden_span_tag(latest_pos_div.find_element(By.XPATH, './div').text)
 
-                        latest_pos_times = filter_hidden_span_tag(latest_pos_div.find_element(By.XPATH, "./span[contains(@class, 't-black--light')]").text)
+                        latest_pos_times = filter_hidden_span_tag(
+                            latest_pos_div.find_element(By.XPATH, "./span[contains(@class, 't-black--light')]").text)
                         latest_pos_from_to = latest_pos_times.split('·')[0].strip()
                         to_date = latest_pos_from_to.split('-')[-1].strip()
 
-                        oldest_pos_times = filter_hidden_span_tag(oldest_pos_div.find_element(By.XPATH, "./span[contains(@class, 't-black--light')]").text)
+                        oldest_pos_times = filter_hidden_span_tag(
+                            oldest_pos_div.find_element(By.XPATH, "./span[contains(@class, 't-black--light')]").text)
                         oldest_pos_from_to = oldest_pos_times.split('·')[0].strip()
                         from_date = oldest_pos_from_to.split('-')[0].strip()
 
@@ -236,7 +239,7 @@ class Person(Scraper):
                         experience.institution_name = company
                         self.add_experience(experience)
 
-
+    def scrape_education(self):
         # Get education
         self.driver.get(self.linkedin_url + '/details/education/')
         sleep_for_a_random_time()
@@ -265,6 +268,7 @@ class Person(Scraper):
                 education.institution_name = university
                 self.add_education(education)
 
+    def scrape_skills(self):
         # Get Skills
         self.driver.get(self.linkedin_url + '/details/skills/')
         sleep_for_a_random_time()
@@ -282,6 +286,7 @@ class Person(Scraper):
                 except Exception as e:
                     pass
 
+    def scrape_projects(self):
         # Get projects
         self.driver.get(self.linkedin_url + '/details/projects')
         sleep_for_a_random_time()
@@ -301,6 +306,16 @@ class Person(Scraper):
                     self.add_project(project_obj)
                 except Exception as e:
                     pass
+
+    def scrape_logged_in(self):
+        self.scrape_name_and_about()
+
+        # Randomly scrape the rest of the pages
+        scrape_funcs = [self.scrape_experience, self.scrape_education, self.scrape_skills, self.scrape_projects]
+        random.shuffle(scrape_funcs)
+
+        for scrape_func in scrape_funcs:
+            scrape_func()
 
     @property
     def company(self):
