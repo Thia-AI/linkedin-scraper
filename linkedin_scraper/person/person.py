@@ -353,8 +353,9 @@ class Person(Scraper):
         return {
             'name': self.name,
             'about': self.about,
+            'url': self.linkedin_url,
             'experiences': [asdict(experience) for experience in self.experiences],
             'educations': [asdict(education) for education in self.educations],
             'skill': [asdict(skill) for skill in self.skills],
-            'projects': [asdict(project) for project in self.projects]
+            'projects': [asdict(project) for project in self.projects],
         }
