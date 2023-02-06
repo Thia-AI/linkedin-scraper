@@ -21,6 +21,17 @@ class Args:
     page_start: int
     page_end: int
     output_dir: str
+    title: str
+
+
+def url_encode_term(string):
+    if not string:
+        return ''
+    key = string.split()
+    keyword = ''
+    for key1 in key:
+        keyword = keyword + str(key1).capitalize() + "%20"
+    return keyword.rstrip("%20")
 
 
 def main(p_args: Args) -> None:
@@ -35,15 +46,12 @@ def main(p_args: Args) -> None:
     driver.maximize_window()
     login(driver, LINKEDIN_EMAIL, LINKEDIN_PASS, timeout=3)
     # Search
-    key = search_term.split()
-    keyword = ''
-    for key1 in key:
-        keyword = keyword + str(key1).capitalize() + "%20"
-    keyword = keyword.rstrip("%20")
+    search_keyword = url_encode_term(search_term)
+    title_keyword = url_encode_term(p_args.title)
     out = []
     for page_no in range(page_start, page_end + 1):
         start = f"&page={page_no}"
-        search_url = f"https://www.linkedin.com/search/results/people/?keywords={keyword}&origin=SUGGESTION{start}&spellCorrectionEnabled=false"
+        search_url = f"https://www.linkedin.com/search/results/people/?keywords={search_keyword}&origin=SUGGESTION{start}&spellCorrectionEnabled=false&titleFreeText={title_keyword}"
         print(f'On page {page_no}: {search_url}')
         driver.get(search_url)
         search = BeautifulSoup(driver.page_source, 'lxml')
@@ -69,6 +77,7 @@ def main(p_args: Args) -> None:
 
 if __name__ == '__main__':
     parser.add_argument('search_term', type=str, help='The term that will be searched in the linkedin search bar')
+    parser.add_argument('-t', '--title', type=str, help='The job title of the people you are searching for')
     parser.add_argument('-ps', '--page_start', type=int,
                         default=1,
                         help='The page number of the search term for which to start the scraping at (default - 1, '
@@ -82,6 +91,6 @@ if __name__ == '__main__':
                              'stored at output_dir/page_{page_start}_to_page_{page_end}.json')
 
     args = parser.parse_args()
-    parsed_args = Args(search_term=args.search_term, page_start=args.page_start, page_end=args.page_end,
+    parsed_args = Args(search_term=args.search_term, title=args.title, page_start=args.page_start, page_end=args.page_end,
                        output_dir=args.output_dir)
     main(parsed_args)
